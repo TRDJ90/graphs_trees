@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "graphs_trees", "graphs_trees.csproj", "{25057DEC-BBDC-13A9-671C-9E9D2533E8EF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{25057DEC-BBDC-13A9-671C-9E9D2533E8EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{25057DEC-BBDC-13A9-671C-9E9D2533E8EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{25057DEC-BBDC-13A9-671C-9E9D2533E8EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{25057DEC-BBDC-13A9-671C-9E9D2533E8EF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A04E84CB-8E55-4590-97B6-A0EB5B9CE81E}
+	EndGlobalSection
+EndGlobal
