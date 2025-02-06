@@ -4,23 +4,28 @@ using System.Numerics;
 
 namespace DataStructures;
 
-public class QuadTree
+public interface IQTElement 
+{
+    Vector2 GetPosition();
+}
+
+public class QuadTree<T> where T : IQTElement 
 {
     private const uint MAX_LEVEL = 8;
 
-    private readonly List<Vector2> points;
-    private readonly AABB boundary;
+    private readonly List<T> elements;
     private readonly uint maxPoints;
     private readonly uint level;
     
-    private QuadTree? northwest, northeast, southwest, southeast = null;
+    private QuadTree<T>? northwest, northeast, southwest, southeast = null;
 
+    public readonly AABB boundary;
     public Color DebugColor {get; set;}
 
     public QuadTree(AABB boundary, uint maxPoints, uint level)
     {
         this.boundary = boundary;
-        this.points = [];
+        this.elements = [];
         this.maxPoints = maxPoints;
         this.level = level;
 
@@ -62,10 +67,10 @@ public class QuadTree
                 _ => Color.Blank,
             };
 
-            this.northwest = new QuadTree(new AABB(new Vector2(centerX - halfDeltaX, centerY - halfDeltaY), new Vector2(centerX, centerY)), this.maxPoints, nextLevel);
-            this.northeast = new QuadTree(new AABB(new Vector2(centerX, centerY - halfDeltaY), new Vector2(centerX + halfDeltaX, centerY)), this.maxPoints, nextLevel);
-            this.southeast = new QuadTree(new AABB(new Vector2(centerX, centerY), new Vector2(centerX + halfDeltaX, centerY + halfDeltaY)), this.maxPoints, nextLevel);
-            this.southwest = new QuadTree(new AABB(new Vector2(centerX - halfDeltaX, centerY), new Vector2(centerX, centerY + halfDeltaY)), this.maxPoints, nextLevel);
+            this.northwest = new QuadTree<T>(new AABB(new Vector2(centerX - halfDeltaX, centerY - halfDeltaY), new Vector2(centerX, centerY)), this.maxPoints, nextLevel);
+            this.northeast = new QuadTree<T>(new AABB(new Vector2(centerX, centerY - halfDeltaY), new Vector2(centerX + halfDeltaX, centerY)), this.maxPoints, nextLevel);
+            this.southeast = new QuadTree<T>(new AABB(new Vector2(centerX, centerY), new Vector2(centerX + halfDeltaX, centerY + halfDeltaY)), this.maxPoints, nextLevel);
+            this.southwest = new QuadTree<T>(new AABB(new Vector2(centerX - halfDeltaX, centerY), new Vector2(centerX, centerY + halfDeltaY)), this.maxPoints, nextLevel);
 
             this.northwest.DebugColor = debugColorForLevel;
             this.northeast.DebugColor = debugColorForLevel;
@@ -78,15 +83,15 @@ public class QuadTree
         
     }
 
-    public List<Vector2> QueryNeighbors(Vector2 point) 
+    public List<T> QueryNeighbors(T point) 
     {
         // Base case
-        if(this.IsLeaf() && this.boundary.Intersect(point)) {
-            return this.points;
+        if(this.IsLeaf() && this.boundary.Intersect(point.GetPosition())) {
+            return this.elements;
         }
 
         // Recursively ask children
-        List<Vector2> neighbors = [];
+        List<T> neighbors = [];
 
         if(this.northwest != null) 
         {
@@ -111,19 +116,65 @@ public class QuadTree
         return neighbors;
     }
 
-    public void RemoveAllPoints()
+    public List<T> RadialQueryNeighbors(T point, float radius)
+    {
+        // Base case
+        if (this.IsLeaf() && this.boundary.IntersectWithCircle(point.GetPosition(), radius))
+        {   
+            var list = new List<T>();
+
+            foreach(var n in this.elements)
+            {
+                Vector2 delta = point.GetPosition() - n.GetPosition();
+                if(delta.Length() < radius)
+                {
+                    list.Add(n);
+                }
+            }
+
+            return list;
+        }
+
+        // Recursively ask children
+        List<T> neighbors = [];
+
+        if (this.northwest != null)
+        {
+            neighbors.AddRange(this.northwest.RadialQueryNeighbors(point, radius));
+        }
+
+        if (this.northeast != null)
+        {
+            neighbors.AddRange(this.northeast.RadialQueryNeighbors(point, radius));
+        }
+
+        if (this.southeast != null)
+        {
+            neighbors.AddRange(this.southeast.RadialQueryNeighbors(point, radius));
+        }
+
+        if (this.southwest != null)
+        {
+            neighbors.AddRange(this.southwest.RadialQueryNeighbors(point, radius));
+        }
+
+        return neighbors;
+    }
+
+
+    public void RemoveAllElements()
     {
         // base condition
         if(this.IsLeaf()) {
-            this.points.Clear();
+            this.elements.Clear();
             return;
         }
 
         // Recursively go through children
-        this.northwest?.RemoveAllPoints();
-        this.northeast?.RemoveAllPoints();
-        this.southeast?.RemoveAllPoints();
-        this.southwest?.RemoveAllPoints();
+        this.northwest?.RemoveAllElements();
+        this.northeast?.RemoveAllElements();
+        this.southeast?.RemoveAllElements();
+        this.southwest?.RemoveAllElements();
 
         this.northwest = null;
         this.northeast = null;
@@ -131,17 +182,17 @@ public class QuadTree
         this.southwest = null;
     }
 
-    public void Insert(Vector2 point)
+    public void Insert(T point)
     {
         // Recursive stop conditions
-        if (!this.boundary.Intersect(point))
+        if (!this.boundary.Intersect(point.GetPosition()))
         {
             return;
         }
 
-        if (this.IsLeaf() && this.points.Count < this.maxPoints)
+        if (this.IsLeaf() && this.elements.Count < this.maxPoints)
         {
-            this.points.Add(point);
+            this.elements.Add(point);
             return;
         }
 
@@ -150,7 +201,7 @@ public class QuadTree
         {
             this.Split();
             // After split insert our own points to newly created children
-            foreach (Vector2 p in this.points)
+            foreach (T p in this.elements)
             {
                 this.northwest?.Insert(p);
                 this.northeast?.Insert(p);
@@ -159,7 +210,7 @@ public class QuadTree
             }
 
             // Clear our points list because we are not leave anymore.
-            this.points.Clear();
+            this.elements.Clear();
         }
 
         // Recursively call child nodes.
@@ -169,7 +220,7 @@ public class QuadTree
         this.southwest?.Insert(point);
     }
 
-    public void InsertAll(List<Vector2> pointList)
+    public void InsertAll(List<T> pointList)
     {
         foreach(var point in pointList)
         {
@@ -177,63 +228,11 @@ public class QuadTree
         }
     }
 
-    public List<Vector2> SpawnRandomPoints(int count)
-    {
-        var rnd = new Random();
-        float x;
-        float y;
-
-        var length = Math.Abs(this.boundary.BRXY.X - this.boundary.ULXY.X) / 2;
-        var width  = Math.Abs(this.boundary.BRXY.Y - this.boundary.ULXY.Y) / 2;
-
-        var pointList = new List<Vector2>();
-
-        for (int i = 0; i < count; i++)
-        {
-            // Generates a double between 0.0 ~ 1.0
-            x = (float)(rnd.NextDouble() * length);
-            y = (float)(rnd.NextDouble() * width);
-
-            Quadrant direction = (Quadrant)(rnd.Next() % 4 + 1);
-            
-            // 1 = northwest, 2 = northeast, 3 = southeast, 4 = southwest
-            // TODO: Probably need to change these directions into enums but yolo for now
-            switch (direction)
-            {
-                case Quadrant.NorthWest:
-                    x *= -1f;
-                    break;
-                case Quadrant.NorthEast:
-                    break;
-                case Quadrant.SouthEast:
-                    y *= -1;
-                    break;
-                case Quadrant.SouthWest:
-                    x *= -1; 
-                    y *= -1;
-                    break;
-            }
-
-            var point = new Vector2(x, y);
-            this.Insert(point);
-            pointList.Add(point);
-        }
-        return pointList;
-    }
-
     public void DrawDebug()
     {
         // base case
         if (this.IsLeaf())
         {
-            foreach (var point in this.points)
-            {
-                Raylib.DrawCube(new Vector3(point.X, 0, point.Y),
-                    0.05f,
-                    0.05f,
-                    0.05f,
-                    this.DebugColor);
-            }
             this.boundary.Draw(this.DebugColor);
             return;
         }
@@ -243,13 +242,5 @@ public class QuadTree
         this.northeast?.DrawDebug();
         this.southeast?.DrawDebug();
         this.southwest?.DrawDebug();
-    }
-
-    private enum Quadrant: int
-    {
-        NorthWest = 1,
-        NorthEast = 2,
-        SouthEast = 3,
-        SouthWest = 4,
     }
 }

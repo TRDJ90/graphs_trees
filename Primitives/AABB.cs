@@ -17,18 +17,19 @@ public class AABB
 
     public bool Intersect(Vector2 point)
     {
-        bool withinMinX = point.X > this.ULXY.X;
-        bool withinMaxY = point.Y < this.ULXY.Y;
 
-        bool withinMaxX = point.X < this.BRXY.X;
-        bool withinMinY = point.Y > this.BRXY.Y;
+        return point.X > this.ULXY.X && point.Y > this.BRXY.Y && point.X < this.BRXY.X && point.Y < this.ULXY.Y;
+    }
 
-        if ((withinMinX && withinMinY && withinMaxX && withinMaxY) == false)
-        {
-            return false;
-        }
+    public bool IntersectWithCircle(Vector2 point, float radius)
+    {
+        float distMinX = Math.Abs(this.ULXY.X - point.X);
+        float distMaxY = Math.Abs(this.ULXY.Y - point.Y);
 
-        return withinMinX && withinMinY && withinMaxX && withinMaxY;
+        float distMaxX = Math.Abs(this.BRXY.X - point.X);
+        float distMinY = Math.Abs(this.BRXY.X - point.X);
+
+        return distMinX < radius || distMinY < radius || distMaxX < radius || distMaxY < radius;
     }
 
     public void Draw(Color color)
@@ -39,9 +40,9 @@ public class AABB
         var x2 = BRXY.X;
         var y2 = BRXY.Y;
 
-        Raylib.DrawLine3D(new Vector3(x1, 0.01f, y1), new Vector3(x2, 0.01f, y1), color);
-        Raylib.DrawLine3D(new Vector3(x2, 0.01f, y1), new Vector3(x2, 0.01f, y2), color);
-        Raylib.DrawLine3D(new Vector3(x2, 0.01f, y2), new Vector3(x1, 0.01f, y2), color);
-        Raylib.DrawLine3D(new Vector3(x1, 0.01f, y2), new Vector3(x1, 0.01f, y1), color);
+        Raylib.DrawLine3D(new Vector3(x1, 0.01f, -y1), new Vector3(x2, 0.01f, -y1), color);
+        Raylib.DrawLine3D(new Vector3(x2, 0.01f, -y1), new Vector3(x2, 0.01f, -y2), color);
+        Raylib.DrawLine3D(new Vector3(x2, 0.01f, -y2), new Vector3(x1, 0.01f, -y2), color);
+        Raylib.DrawLine3D(new Vector3(x1, 0.01f, -y2), new Vector3(x1, 0.01f, -y1), color);
     }
 }
