@@ -161,7 +161,6 @@ public class QuadTree<T> where T : IQTElement
         return neighbors;
     }
 
-
     public void RemoveAllElements()
     {
         // base condition

@@ -13,8 +13,8 @@ class Program
 		// NOTE: Raylib -Z is the direction going into the monitor!!!
 		Camera3D camera = new()
 		{
-			Position = new Vector3(2, 5, 5),
-			Target = new Vector3(2, 0, -1),
+			Position = new Vector3(5, 8, 6),
+			Target = new Vector3(5, 0, -3),
 			Up = new Vector3(0, 1, 0),
 			FovY = 45.0f,
 			Projection = CameraProjection.Perspective
@@ -23,13 +23,14 @@ class Program
 		Raylib.DisableCursor();
 		Raylib.SetTargetFPS(60);
 
-		var qtBoundary = new AABB(new Vector2(0, 5), new Vector2(5, 0));
-		var quadTree = new QuadTree<Boids>(qtBoundary, 4, 0);
+		var qtBoundary = new AABB(new Vector2(0, 15), new Vector2(15, 0));
+		var quadTree = new QuadTree<Boid>(qtBoundary, 8, 0);
 
-	    var radius = 0.8f;
-		var points = SpawnRandomPoints(256, qtBoundary);
-		//var points = SpawnTestPoints(quadTree);
+		var amount = 512;
+		var boids = SpawnRandomPoints(amount, qtBoundary);
+		quadTree.InsertAll(boids);
 
+		int count = 0;
 		while (!Raylib.WindowShouldClose())
 		{
 			// Update
@@ -43,113 +44,84 @@ class Program
 
 				Raylib.BeginMode3D(camera);
 				{
-					UpdatePoints(points, quadTree.boundary);
+					UpdatePoints(boids, quadTree);
 					quadTree.RemoveAllElements();
-					quadTree.InsertAll(points);
+					quadTree.InsertAll(boids);
 
-					var testBoid = new Boids(new Vector2(1.55f, 1.72f));
-					var queryNeighbors = quadTree.RadialQueryNeighbors(testBoid, radius);
-
-					foreach (var point in points)
+					foreach (var boid in boids)
 					{
-						if (!queryNeighbors.Contains(point))
-						{
-							Raylib.DrawSphere(new Vector3(point.Position.X, 0, -point.Position.Y),
-								0.05f,
-								Color.SkyBlue);
-						}
-					}
-
-					foreach (var point in queryNeighbors)
-					{
-						Raylib.DrawSphere(new Vector3(point.Position.X, 0, -point.Position.Y),
+						Raylib.DrawSphere(new Vector3(boid.Position.X, 0, -boid.Position.Y),
 							0.05f,
-							Color.Green);
+							Color.SkyBlue);
+
 					}
-
-					Raylib.DrawCylinder(new Vector3(testBoid.Position.X, 0, -testBoid.Position.Y), radius, radius, 0.0001f, 32, new Color(255, 0, 0, 50));
-
-					Raylib.DrawSphere(new Vector3(testBoid.Position.X, 0, -testBoid.Position.Y),
-							0.05f,
-							Color.Red);
-
 					quadTree.DrawDebug();
 				}
 				Raylib.EndMode3D();
 			}
 			Raylib.EndDrawing();
+			count += 1;
 		}
 
 		Raylib.CloseWindow();
 	}
 
-	// static List<IQTElement> SpawnTestPoints(QuadTree<IQTElement> qt)
-	// {
-	// 	var list = new List<IQTElement>
-	// 	{
-	// 		new(0.8f, 0.6f),
-    //         new(0.4f, 0.7f),
-
-	// 		new(1.8f, 0.6f),
-	// 		new(1.6f, 1.7f),
-	// 		new(1.51f, 1.65f),
-	// 		new(1.6f, 1.8f),
-	// 	};
-
-	// 	foreach (var p in list)
-	// 	{
-	// 		qt.Insert(p);
-	// 	}
-
-
-	// 	return list;
-	// }
-
-	static void UpdatePoints(List<Boids> points, AABB boundary)
+	static void UpdatePoints(List<Boid> boids, QuadTree<Boid> qt)
 	{
-		var rnd = new Random();
-		var velocity = 0.01f;
-
-		for (int i = 0; i < points.Count; i++)
+		for (int i = 0; i < boids.Count; i++)
 		{
-			var point = points[i];
-			var updatedX = point.Position.X + velocity;
-			var updatedY = point.Position.Y + velocity;
+			var boid = boids[i];
+			var neighbors = qt.RadialQueryNeighbors(boid, boid.PerceptionRadius * 2);
+			boid.Update(neighbors, qt.boundary);
 
-			// Loop around
-			if (updatedX < boundary.ULXY.X)
+			if(!qt.boundary.Intersect(boid.Position))
 			{
-				updatedX = boundary.BRXY.X;
+				boid.Position = Clamp(boid.Position, qt.boundary);
 			}
-			if (updatedX > boundary.BRXY.X)
-			{
-				updatedX = boundary.ULXY.X;
-			}
-
-			if (updatedY < boundary.BRXY.Y)
-			{
-				updatedY = boundary.ULXY.Y;
-			}
-			if (updatedY > boundary.ULXY.Y)
-			{
-				updatedY = boundary.BRXY.Y;
-			}
-
-			var updatedPoint = new Vector2(updatedX, updatedY);
-			points[i].Position = updatedPoint;
 		}
 	}
 
-	public static List<Boids> SpawnRandomPoints(int count, AABB boundary)
+	static Vector2 Clamp(Vector2 position, AABB boundary)
+	{
+		var minX = boundary.ULXY.X;
+		var maxX = boundary.BRXY.X;
+		var minY = boundary.BRXY.Y;
+		var maxY = boundary.ULXY.Y;
+		
+		var updatedX = position.X;
+		var updatedY = position.Y;
+
+		// Loop around
+		if (updatedX < minX)
+		{
+			updatedX = maxX - 0.01f;
+		}
+		if (updatedX > maxX)
+		{
+			updatedX = minX + 0.01f;
+		}
+
+		if (updatedY < minY)
+		{
+			updatedY = maxY - 0.01f;
+		}
+		if (updatedY > maxY)
+		{
+			updatedY = minY + 0.01f;
+		}
+
+		return new Vector2(updatedX, updatedY);
+	}
+
+	static List<Boid> SpawnRandomPoints(int count, AABB boundary)
 	{
 		var rnd = new Random();
-		float x;
-		float y;
+		float x, y, dirX, dirY;
 
 		var length = Math.Abs(boundary.BRXY.X - boundary.ULXY.X);
 		var width = Math.Abs(boundary.BRXY.Y - boundary.ULXY.Y);
 
-		var boids = new List<Boids>();
+		var boids = new List<Boid>();
 
 		for (int i = 0; i < count; i++)
 		{
@@ -157,9 +129,19 @@ class Program
 			x = (float)(rnd.NextDouble() * length);
 			y = (float)(rnd.NextDouble() * width);
 
-			var boid = new Boids(new Vector2(x, y));
+			dirX = (float)rnd.NextDouble() - (float)rnd.NextDouble();
+			dirY = (float)rnd.NextDouble() - (float)rnd.NextDouble();
+
+			var boid = new Boid()
+			{
+				Position = new Vector2(x, y),
+				Direction = Vector2.Normalize(new Vector2(dirX, dirY)),
+				Acceleration = Vector2.Zero,
+			};
+
 			boids.Add(boid);
 		}
+
 		return boids;
 	}
 }
